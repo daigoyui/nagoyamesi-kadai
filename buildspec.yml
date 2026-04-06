@@ -1,0 +1,36 @@
+version: 0.2
+
+env:
+  variables:
+    ECR_REPOSITORY: 081731354418.dkr.ecr.ap-northeast-1.amazonaws.com/handson-20260326-repo
+    CONTAINER_NAME: container-test-app
+     
+phases:
+  pre_build:
+    commands:
+      - echo "[PRE_BUILD] Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin ${ECR_REPOSITORY}
+
+  build:
+    commands:
+      - echo "[BUILD] Building Laravel Docker image..."
+      - docker build --no-cache -f Dockerfile.deployment -t ${CONTAINER_NAME} .
+      - docker tag ${CONTAINER_NAME}:latest ${ECR_REPOSITORY}:latest
+
+  post_build:
+    commands:
+      - echo "[POST_BUILD] Pushing Laravel Docker image in REPOSITORY..."
+      - docker push ${ECR_REPOSITORY}:latest
+      - echo Build completed on `date`
+      - echo Creating imagedefinitions.json...
+      - |
+        echo '[
+          {
+            "name": "'${CONTAINER_NAME}'",
+            "imageUri": "'${ECR_REPOSITORY}':latest"
+          }
+        ]' > imagedefinitions.json
+      - echo imagedefinitions.json created.
+artifacts:
+  files:
+    - imagedefinitions.json
